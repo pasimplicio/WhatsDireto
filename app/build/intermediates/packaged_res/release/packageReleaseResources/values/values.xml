@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="WhatsAppBg">#ECE5DD</color>
+    <color name="WhatsAppHeaderGreen">#075E54</color>
+    <string name="app_name">WhatsDireto</string>
+    <style name="Theme.WhatsDireto" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/WhatsAppBg</item>
+        <item name="android:statusBarColor">@color/WhatsAppHeaderGreen</item>
+    </style>
+</resources>
