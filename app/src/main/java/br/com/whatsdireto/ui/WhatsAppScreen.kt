@@ -184,6 +184,16 @@ fun WhatsAppScreen() {
         )
     }
 
+    // Tutorial Dialog
+    if (state.isFirstTimeUser) {
+        TutorialBubble(
+            step = state.currentTutorialStep,
+            onNext = viewModel::nextTutorialStep,
+            onPrevious = viewModel::previousTutorialStep,
+            onSkip = viewModel::skipTutorial
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -239,197 +249,31 @@ fun WhatsAppScreen() {
                 )
             ) {
                 item {
-                    if (state.isFirstTimeUser && state.currentTutorialStep == 0) {
-                        TutorialBubble(
-                            step = 0,
-                            targetContent = {
-                                InstructionCard()
-                            },
-                            onNext = { viewModel.nextTutorialStep() },
-                            onPrevious = { viewModel.previousTutorialStep() },
-                            onSkip = { viewModel.skipTutorial() }
-                        )
-                    } else {
-                        InstructionCard()
-                    }
+                    ModernInputCard(
+                        phoneInput = state.phoneInput,
+                        messageInput = state.messageInput,
+                        selectedFileName = state.selectedFileName,
+                        onPhoneChanged = viewModel::onPhoneChanged,
+                        onMessageChanged = viewModel::onMessageChanged,
+                        onPasteClick = { viewModel.pasteFromClipboard(context) },
+                        onContactsClick = viewModel::toggleContactPicker,
+                        onQuickMessagesClick = viewModel::toggleQuickMessages,
+                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
+                        onSendClick = { viewModel.onSendClick(context) },
+                        onClearAttachment = viewModel::clearAttachment
+                    )
                 }
 
                 item {
-                    if (state.isFirstTimeUser) {
-                        when (state.currentTutorialStep) {
-                            1 -> TutorialBubble(
-                                step = 1,
-                                targetContent = {
-                                    ModernInputCard(
-                                        phoneInput = state.phoneInput,
-                                        messageInput = state.messageInput,
-                                        selectedFileName = state.selectedFileName,
-                                        onPhoneChanged = viewModel::onPhoneChanged,
-                                        onMessageChanged = viewModel::onMessageChanged,
-                                        onPasteClick = { viewModel.pasteFromClipboard(context) },
-                                        onContactsClick = viewModel::toggleContactPicker,
-                                        onQuickMessagesClick = viewModel::toggleQuickMessages,
-                                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
-                                        onSendClick = { viewModel.onSendClick(context) },
-                                        onClearAttachment = viewModel::clearAttachment,
-                                        highlightField = "phone"
-                                    )
-                                },
-                                onNext = viewModel::nextTutorialStep,
-                                onPrevious = viewModel::previousTutorialStep,
-                                onSkip = viewModel::skipTutorial
-                            )
-                            2 -> TutorialBubble(
-                                step = 2,
-                                targetContent = {
-                                    ModernInputCard(
-                                        phoneInput = state.phoneInput,
-                                        messageInput = state.messageInput,
-                                        selectedFileName = state.selectedFileName,
-                                        onPhoneChanged = viewModel::onPhoneChanged,
-                                        onMessageChanged = viewModel::onMessageChanged,
-                                        onPasteClick = { viewModel.pasteFromClipboard(context) },
-                                        onContactsClick = viewModel::toggleContactPicker,
-                                        onQuickMessagesClick = viewModel::toggleQuickMessages,
-                                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
-                                        onSendClick = { viewModel.onSendClick(context) },
-                                        onClearAttachment = viewModel::clearAttachment,
-                                        highlightField = "contacts"
-                                    )
-                                },
-                                onNext = viewModel::nextTutorialStep,
-                                onPrevious = viewModel::previousTutorialStep,
-                                onSkip = viewModel::skipTutorial
-                            )
-                            3 -> TutorialBubble(
-                                step = 3,
-                                targetContent = {
-                                    ModernInputCard(
-                                        phoneInput = state.phoneInput,
-                                        messageInput = state.messageInput,
-                                        selectedFileName = state.selectedFileName,
-                                        onPhoneChanged = viewModel::onPhoneChanged,
-                                        onMessageChanged = viewModel::onMessageChanged,
-                                        onPasteClick = { viewModel.pasteFromClipboard(context) },
-                                        onContactsClick = viewModel::toggleContactPicker,
-                                        onQuickMessagesClick = viewModel::toggleQuickMessages,
-                                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
-                                        onSendClick = { viewModel.onSendClick(context) },
-                                        onClearAttachment = viewModel::clearAttachment,
-                                        highlightField = "message"
-                                    )
-                                },
-                                onNext = viewModel::nextTutorialStep,
-                                onPrevious = viewModel::previousTutorialStep,
-                                onSkip = viewModel::skipTutorial
-                            )
-                            4 -> TutorialBubble(
-                                step = 4,
-                                targetContent = {
-                                    ModernInputCard(
-                                        phoneInput = state.phoneInput,
-                                        messageInput = state.messageInput,
-                                        selectedFileName = state.selectedFileName,
-                                        onPhoneChanged = viewModel::onPhoneChanged,
-                                        onMessageChanged = viewModel::onMessageChanged,
-                                        onPasteClick = { viewModel.pasteFromClipboard(context) },
-                                        onContactsClick = viewModel::toggleContactPicker,
-                                        onQuickMessagesClick = viewModel::toggleQuickMessages,
-                                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
-                                        onSendClick = { viewModel.onSendClick(context) },
-                                        onClearAttachment = viewModel::clearAttachment,
-                                        highlightField = "attach"
-                                    )
-                                },
-                                onNext = viewModel::nextTutorialStep,
-                                onPrevious = viewModel::previousTutorialStep,
-                                onSkip = viewModel::skipTutorial
-                            )
-                            5 -> TutorialBubble(
-                                step = 5,
-                                targetContent = {
-                                    ModernInputCard(
-                                        phoneInput = state.phoneInput,
-                                        messageInput = state.messageInput,
-                                        selectedFileName = state.selectedFileName,
-                                        onPhoneChanged = viewModel::onPhoneChanged,
-                                        onMessageChanged = viewModel::onMessageChanged,
-                                        onPasteClick = { viewModel.pasteFromClipboard(context) },
-                                        onContactsClick = viewModel::toggleContactPicker,
-                                        onQuickMessagesClick = viewModel::toggleQuickMessages,
-                                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
-                                        onSendClick = { viewModel.onSendClick(context) },
-                                        onClearAttachment = viewModel::clearAttachment,
-                                        highlightField = "paste"
-                                    )
-                                },
-                                onNext = viewModel::nextTutorialStep,
-                                onPrevious = viewModel::previousTutorialStep,
-                                onSkip = viewModel::skipTutorial
-                            )
-                            else -> {
-                                ModernInputCard(
-                                    phoneInput = state.phoneInput,
-                                    messageInput = state.messageInput,
-                                    selectedFileName = state.selectedFileName,
-                                    onPhoneChanged = viewModel::onPhoneChanged,
-                                    onMessageChanged = viewModel::onMessageChanged,
-                                    onPasteClick = { viewModel.pasteFromClipboard(context) },
-                                    onContactsClick = viewModel::toggleContactPicker,
-                                    onQuickMessagesClick = viewModel::toggleQuickMessages,
-                                    onAttachFileClick = { filePickerLauncher.launch("*/*") },
-                                    onSendClick = { viewModel.onSendClick(context) },
-                                    onClearAttachment = viewModel::clearAttachment
-                                )
-                            }
-                        }
-                    } else {
-                        ModernInputCard(
-                            phoneInput = state.phoneInput,
-                            messageInput = state.messageInput,
-                            selectedFileName = state.selectedFileName,
-                            onPhoneChanged = viewModel::onPhoneChanged,
-                            onMessageChanged = viewModel::onMessageChanged,
-                            onPasteClick = { viewModel.pasteFromClipboard(context) },
-                            onContactsClick = viewModel::toggleContactPicker,
-                            onQuickMessagesClick = viewModel::toggleQuickMessages,
-                            onAttachFileClick = { filePickerLauncher.launch("*/*") },
-                            onSendClick = { viewModel.onSendClick(context) },
-                            onClearAttachment = viewModel::clearAttachment
-                        )
-                    }
-                }
-
-                item {
-                    if (state.isFirstTimeUser && state.currentTutorialStep == 6) {
-                        TutorialBubble(
-                            step = 6,
-                            targetContent = {
-                                ModernHistoryCard(
-                                    history = if (state.isSearching) state.filteredHistory else state.history,
-                                    historyLabel = viewModel::historyLabel,
-                                    onSelect = viewModel::onHistorySelected,
-                                    onClear = viewModel::clearHistory,
-                                    onSearch = viewModel::searchHistory,
-                                    onClearSearch = viewModel::clearSearch,
-                                    isSearching = state.isSearching
-                                )
-                            },
-                            onNext = viewModel::nextTutorialStep,
-                            onPrevious = viewModel::previousTutorialStep,
-                            onSkip = viewModel::skipTutorial
-                        )
-                    } else {
-                        ModernHistoryCard(
-                            history = if (state.isSearching) state.filteredHistory else state.history,
-                            historyLabel = viewModel::historyLabel,
-                            onSelect = viewModel::onHistorySelected,
-                            onClear = viewModel::clearHistory,
-                            onSearch = viewModel::searchHistory,
-                            onClearSearch = viewModel::clearSearch,
-                            isSearching = state.isSearching
-                        )
-                    }
+                    ModernHistoryCard(
+                        history = if (state.isSearching) state.filteredHistory else state.history,
+                        historyLabel = viewModel::historyLabel,
+                        onSelect = viewModel::onHistorySelected,
+                        onClear = viewModel::clearHistory,
+                        onSearch = viewModel::searchHistory,
+                        onClearSearch = viewModel::clearSearch,
+                        isSearching = state.isSearching
+                    )
                 }
             }
 
@@ -1029,35 +873,6 @@ private fun QuickMessageItem(
                     tint = MaterialTheme.colorScheme.error
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun InstructionCard() {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = ChatBubble)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                "Como usar",
-                fontWeight = FontWeight.Bold,
-                color = WhatsAppDarkGreen
-            )
-
-            Spacer(Modifier.height(6.dp))
-
-            Text(
-                "1. Digite, cole ou escolha um contato.\n" +
-                        "2. Adicione uma mensagem (opcional).\n" +
-                        "3. Anexe um arquivo se desejar.\n" +
-                        "4. Toque em Abrir conversa.\n" +
-                        "5. O WhatsApp abrirá sem salvar o contato.",
-                style = MaterialTheme.typography.bodyMedium
-            )
         }
     }
 }
