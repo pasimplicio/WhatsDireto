@@ -1,8 +1,10 @@
 package br.com.whatsdireto.ui
 
+import android.content.ActivityNotFoundException
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
@@ -14,14 +16,12 @@ import br.com.whatsdireto.data.HistoryRepository
 import br.com.whatsdireto.data.QuickMessageRepository
 import br.com.whatsdireto.domain.PhoneMask
 import br.com.whatsdireto.domain.WhatsAppLauncher
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
 
 class WhatsAppViewModel(
     private val historyRepository: HistoryRepository,
@@ -30,8 +30,6 @@ class WhatsAppViewModel(
 
     private val _uiState = MutableStateFlow(WhatsAppUiState())
     val uiState: StateFlow<WhatsAppUiState> = _uiState.asStateFlow()
-
-    private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
 
     init {
         viewModelScope.launch {
@@ -47,9 +45,6 @@ class WhatsAppViewModel(
                 }
             }.collect {}
         }
-
-        // Inicia monitoramento da área de transferência
-        startClipboardMonitoring()
     }
 
     fun onPhoneChanged(value: TextFieldValue) {
@@ -80,6 +75,49 @@ class WhatsAppViewModel(
                 message = null
             )
         }
+    }
+
+    fun onFileSelected(context: Context, uri: Uri) {
+        val fileName = getFileName(context, uri) ?: "Arquivo selecionado"
+
+        _uiState.update {
+            it.copy(
+                selectedFileUri = uri,
+                selectedFileName = fileName,
+                message = "Arquivo anexado: $fileName"
+            )
+        }
+    }
+
+    fun clearAttachment() {
+        _uiState.update {
+            it.copy(
+                selectedFileUri = null,
+                selectedFileName = null
+            )
+        }
+    }
+
+    private fun getFileName(context: Context, uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1) {
+                        result = cursor.getString(nameIndex)
+                    }
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/')
+            if (cut != -1) {
+                result = result?.substring(cut!! + 1)
+            }
+        }
+        return result
     }
 
     fun pasteFromClipboard(context: Context) {
@@ -166,35 +204,6 @@ class WhatsAppViewModel(
         }
     }
 
-    fun onQrCodeScanned(rawValue: String?) {
-        val raw = rawValue?.trim().orEmpty()
-        if (raw.isBlank()) {
-            showMessage("QR code vazio ou inválido.")
-            return
-        }
-
-        val candidate = extractPhoneCandidate(raw)
-        val normalized = candidate?.let(PhoneMask::toWhatsAppPhone)
-
-        if (normalized == null) {
-            showMessage("Não foi possível identificar um número de WhatsApp no QR code.")
-            return
-        }
-
-        val formatted = PhoneMask.formatForDisplay(normalized)
-
-        _uiState.update {
-            it.copy(
-                phoneInput = TextFieldValue(
-                    text = formatted,
-                    selection = TextRange(formatted.length)
-                ),
-                message = "Número lido por QR code.",
-                showQRScanner = false
-            )
-        }
-    }
-
     fun onSendClick(context: Context) {
         val normalized = PhoneMask.toWhatsAppPhone(_uiState.value.phoneInput.text)
 
@@ -207,19 +216,82 @@ class WhatsAppViewModel(
             historyRepository.save(normalized)
         }
 
-        // Se tiver mensagem rápida, envia junto (via URL)
+        // Pega a mensagem
         val messageText = _uiState.value.messageInput.text
-        WhatsAppLauncher.open(context, normalized, messageText)
 
-        val formatted = PhoneMask.formatForDisplay(normalized)
+        // Verifica se tem arquivo anexado
+        val fileUri = _uiState.value.selectedFileUri
+        if (fileUri != null) {
+            shareFileWithWhatsApp(context, normalized, messageText, fileUri)
+        } else {
+            WhatsAppLauncher.open(context, normalized, messageText)
+        }
 
+        // Limpa os campos após enviar
+        clearAllFields()
+    }
+
+    private fun shareFileWithWhatsApp(context: Context, phone: String, message: String, fileUri: Uri) {
+        try {
+            // Limpa o telefone
+            val cleanPhone = phone.replace("[^0-9]".toRegex(), "")
+
+            // Cria o intent para enviar arquivo + mensagem diretamente para o WhatsApp
+            val shareIntent = Intent().apply {
+                action = Intent.ACTION_SEND
+                type = context.contentResolver.getType(fileUri) ?: "*/*"
+                putExtra(Intent.EXTRA_STREAM, fileUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+                // Adiciona a mensagem se existir
+                if (message.isNotBlank()) {
+                    putExtra(Intent.EXTRA_TEXT, message)
+                }
+
+                // Formato correto para o jid do WhatsApp (identificador do contato)
+                // Isso faz abrir diretamente a conversa
+                putExtra("jid", "$cleanPhone@s.whatsapp.net")
+
+                // Força abrir diretamente no WhatsApp sem diálogo
+                setPackage("com.whatsapp")
+            }
+
+            context.startActivity(shareIntent)
+        } catch (e: ActivityNotFoundException) {
+            try {
+                // Se o WhatsApp normal não estiver instalado, tenta o Business
+                val businessIntent = Intent().apply {
+                    action = Intent.ACTION_SEND
+                    type = context.contentResolver.getType(fileUri) ?: "*/*"
+                    putExtra(Intent.EXTRA_STREAM, fileUri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+                    if (message.isNotBlank()) {
+                        putExtra(Intent.EXTRA_TEXT, message)
+                    }
+
+                    putExtra("jid", "$phone@s.whatsapp.net")
+                    setPackage("com.whatsapp.w4b")
+                }
+                context.startActivity(businessIntent)
+            } catch (e2: ActivityNotFoundException) {
+                // Se ambos falharem, envia só a mensagem pelo método tradicional
+                WhatsAppLauncher.open(context, phone, message)
+            }
+        } catch (e: Exception) {
+            // Se falhar por qualquer outro motivo, tenta o método tradicional
+            WhatsAppLauncher.open(context, phone, message)
+        }
+    }
+
+    private fun clearAllFields() {
         _uiState.update {
             it.copy(
-                phoneInput = TextFieldValue(
-                    text = formatted,
-                    selection = TextRange(formatted.length)
-                ),
-                message = null
+                phoneInput = TextFieldValue(""),
+                messageInput = TextFieldValue(""),
+                selectedFileUri = null,
+                selectedFileName = null,
+                message = "Conversa aberta com sucesso!"
             )
         }
     }
@@ -264,57 +336,12 @@ class WhatsAppViewModel(
         _uiState.update { it.copy(showContactPicker = !it.showContactPicker) }
     }
 
-    fun toggleQRScanner() {
-        _uiState.update { it.copy(showQRScanner = !it.showQRScanner) }
-    }
-
     fun toggleQuickMessages() {
         _uiState.update { it.copy(showQuickMessages = !it.showQuickMessages) }
     }
 
     private fun showMessage(text: String) {
         _uiState.update { it.copy(message = text) }
-    }
-
-    private fun extractPhoneCandidate(raw: String): String? {
-        val parsedUri = runCatching { Uri.parse(raw) }.getOrNull()
-        val phoneQuery = parsedUri?.getQueryParameter("phone")
-
-        val waMe = Regex("wa\\.me/([0-9+]+)", RegexOption.IGNORE_CASE)
-            .find(raw)
-            ?.groupValues
-            ?.getOrNull(1)
-
-        val directPhone = Regex("phone=([0-9+]+)", RegexOption.IGNORE_CASE)
-            .find(raw)
-            ?.groupValues
-            ?.getOrNull(1)
-
-        val allDigits = PhoneMask.digits(raw)
-        val brazilWithCountryCode = Regex("55\\d{10,11}").find(allDigits)?.value
-
-        val candidates = listOfNotNull(
-            phoneQuery,
-            waMe,
-            directPhone,
-            raw,
-            brazilWithCountryCode,
-            allDigits
-        ).distinct()
-
-        return candidates.firstOrNull { PhoneMask.toWhatsAppPhone(it) != null }
-    }
-
-    private fun startClipboardMonitoring() {
-        // Será implementado com um serviço ou observer
-        // Por simplicidade, vamos simular com um timer
-        viewModelScope.launch {
-            while (true) {
-                delay(2000)
-                // Aqui verificaria o clipboard
-                // Mas requer contexto - farei na Activity
-            }
-        }
     }
 
     fun checkClipboardForNumber(context: Context) {
@@ -329,10 +356,43 @@ class WhatsAppViewModel(
                 val normalized = PhoneMask.toWhatsAppPhone(text)
                 if (normalized != null && !_uiState.value.phoneInput.text.contains(digits)) {
                     showMessage("Número detectado na área de transferência!")
-                    // Opcionalmente, poderia auto-preenche
                 }
             }
         }
+    }
+
+    // Funções do Tutorial
+    fun completeTutorial() {
+        _uiState.update {
+            it.copy(
+                isFirstTimeUser = false,
+                currentTutorialStep = 0
+            )
+        }
+    }
+
+    fun nextTutorialStep() {
+        val currentStep = _uiState.value.currentTutorialStep
+        if (currentStep < 6) {
+            _uiState.update {
+                it.copy(currentTutorialStep = currentStep + 1)
+            }
+        } else {
+            completeTutorial()
+        }
+    }
+
+    fun previousTutorialStep() {
+        val currentStep = _uiState.value.currentTutorialStep
+        if (currentStep > 0) {
+            _uiState.update {
+                it.copy(currentTutorialStep = currentStep - 1)
+            }
+        }
+    }
+
+    fun skipTutorial() {
+        completeTutorial()
     }
 
     companion object {

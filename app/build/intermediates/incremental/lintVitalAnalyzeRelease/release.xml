@@ -6,7 +6,7 @@
     mergedManifest="build\intermediates\merged_manifest\release\processReleaseMainManifest\AndroidManifest.xml"
     proguardFiles="build\intermediates\default_proguard_files\global\proguard-android-optimize.txt-8.13.1;proguard-rules.pro"
     partialResultsDir="build\intermediates\lint_vital_partial_results\release\lintVitalAnalyzeRelease\out"
-    desugaredMethodsFiles="C:\Users\paulosimplicio\.gradle\caches\8.13\transforms\3db8bca80fd0690305449062b6b0648a\transformed\D8BackportedDesugaredMethods.txt">
+    desugaredMethodsFiles="C:\Users\caema43907\.gradle\caches\8.13\transforms\3db8bca80fd0690305449062b6b0648a\transformed\D8BackportedDesugaredMethods.txt">
   <buildFeatures
       namespacing="REQUIRED"/>
   <sourceProviders>
@@ -26,6 +26,6 @@
       applicationId="br.com.whatsdireto"
       generatedSourceFolders="build\generated\ap_generated_sources\release\out"
       generatedResourceFolders="build\generated\res\resValues\release"
-      desugaredMethodsFiles="C:\Users\paulosimplicio\.gradle\caches\8.13\transforms\3db8bca80fd0690305449062b6b0648a\transformed\D8BackportedDesugaredMethods.txt">
+      desugaredMethodsFiles="C:\Users\caema43907\.gradle\caches\8.13\transforms\3db8bca80fd0690305449062b6b0648a\transformed\D8BackportedDesugaredMethods.txt">
   </artifact>
 </variant>

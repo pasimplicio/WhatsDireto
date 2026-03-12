@@ -10,6 +10,7 @@ import android.content.ActivityNotFoundException
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +22,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,11 +43,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.ContentPaste
@@ -53,9 +57,7 @@ import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
-import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -72,6 +74,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -86,6 +91,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -110,6 +116,7 @@ import br.com.whatsdireto.ui.theme.WhatsAppBg
 import br.com.whatsdireto.ui.theme.WhatsAppDarkGreen
 import br.com.whatsdireto.ui.theme.WhatsAppGreen
 import br.com.whatsdireto.ui.theme.WhatsAppHeaderGreen
+import kotlinx.coroutines.launch
 
 @Composable
 fun WhatsAppScreen() {
@@ -121,6 +128,24 @@ fun WhatsAppScreen() {
     val state by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val listState = rememberLazyListState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // File picker launcher
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.onFileSelected(context, it)
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Arquivo anexado com sucesso!",
+                    duration = SnackbarDuration.Short
+                )
+            }
+        }
+    }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -135,14 +160,6 @@ fun WhatsAppScreen() {
         manager?.addPrimaryClipChangedListener {
             viewModel.checkClipboardForNumber(context)
         }
-    }
-
-    // QR Code Scanner Nativo
-    if (state.showQRScanner) {
-        QRCodeScanner(
-            onQRCodeScanned = viewModel::onQrCodeScanned,
-            onDismiss = viewModel::toggleQRScanner
-        )
     }
 
     // Contact Picker
@@ -184,56 +201,289 @@ fun WhatsAppScreen() {
                     .navigationBarsPadding()
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = WhatsAppBg
-    ) { padding ->
+    ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(WhatsAppBg)
-                .padding(padding)
-                .clickable {
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
                     focusManager.clearFocus()
                     keyboardController?.hide()
                 }
         ) {
             WhatsAppDoodleBackground()
 
+            // Conteúdo principal
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
+                    .padding(
+                        top = paddingValues.calculateTopPadding() + 8.dp,
+                        bottom = paddingValues.calculateBottomPadding() + 8.dp,
+                        start = 12.dp,
+                        end = 12.dp
+                    )
                     .safeDrawingPadding()
                     .navigationBarsPadding()
-                    .imePadding()
-                    .padding(16.dp),
+                    .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 96.dp)
+                contentPadding = PaddingValues(
+                    top = 8.dp,
+                    bottom = 88.dp
+                )
             ) {
-                item { InstructionCard() }
-
                 item {
-                    ModernInputCard(
-                        phoneInput = state.phoneInput,
-                        messageInput = state.messageInput,
-                        onPhoneChanged = viewModel::onPhoneChanged,
-                        onMessageChanged = viewModel::onMessageChanged,
-                        onPasteClick = { viewModel.pasteFromClipboard(context) },
-                        onQrCodeClick = viewModel::toggleQRScanner,
-                        onContactsClick = viewModel::toggleContactPicker,
-                        onQuickMessagesClick = viewModel::toggleQuickMessages,
-                        onSendClick = { viewModel.onSendClick(context) },
-                        onShareClick = { shareNumber(context, state.phoneInput.text) }
-                    )
+                    if (state.isFirstTimeUser && state.currentTutorialStep == 0) {
+                        TutorialBubble(
+                            step = 0,
+                            targetContent = {
+                                InstructionCard()
+                            },
+                            onNext = { viewModel.nextTutorialStep() },
+                            onPrevious = { viewModel.previousTutorialStep() },
+                            onSkip = { viewModel.skipTutorial() }
+                        )
+                    } else {
+                        InstructionCard()
+                    }
                 }
 
                 item {
-                    ModernHistoryCard(
-                        history = if (state.isSearching) state.filteredHistory else state.history,
-                        historyLabel = viewModel::historyLabel,
-                        onSelect = viewModel::onHistorySelected,
-                        onClear = viewModel::clearHistory,
-                        onSearch = viewModel::searchHistory,
-                        onClearSearch = viewModel::clearSearch,
-                        isSearching = state.isSearching
+                    if (state.isFirstTimeUser) {
+                        when (state.currentTutorialStep) {
+                            1 -> TutorialBubble(
+                                step = 1,
+                                targetContent = {
+                                    ModernInputCard(
+                                        phoneInput = state.phoneInput,
+                                        messageInput = state.messageInput,
+                                        selectedFileName = state.selectedFileName,
+                                        onPhoneChanged = viewModel::onPhoneChanged,
+                                        onMessageChanged = viewModel::onMessageChanged,
+                                        onPasteClick = { viewModel.pasteFromClipboard(context) },
+                                        onContactsClick = viewModel::toggleContactPicker,
+                                        onQuickMessagesClick = viewModel::toggleQuickMessages,
+                                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
+                                        onSendClick = { viewModel.onSendClick(context) },
+                                        onClearAttachment = viewModel::clearAttachment,
+                                        highlightField = "phone"
+                                    )
+                                },
+                                onNext = viewModel::nextTutorialStep,
+                                onPrevious = viewModel::previousTutorialStep,
+                                onSkip = viewModel::skipTutorial
+                            )
+                            2 -> TutorialBubble(
+                                step = 2,
+                                targetContent = {
+                                    ModernInputCard(
+                                        phoneInput = state.phoneInput,
+                                        messageInput = state.messageInput,
+                                        selectedFileName = state.selectedFileName,
+                                        onPhoneChanged = viewModel::onPhoneChanged,
+                                        onMessageChanged = viewModel::onMessageChanged,
+                                        onPasteClick = { viewModel.pasteFromClipboard(context) },
+                                        onContactsClick = viewModel::toggleContactPicker,
+                                        onQuickMessagesClick = viewModel::toggleQuickMessages,
+                                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
+                                        onSendClick = { viewModel.onSendClick(context) },
+                                        onClearAttachment = viewModel::clearAttachment,
+                                        highlightField = "contacts"
+                                    )
+                                },
+                                onNext = viewModel::nextTutorialStep,
+                                onPrevious = viewModel::previousTutorialStep,
+                                onSkip = viewModel::skipTutorial
+                            )
+                            3 -> TutorialBubble(
+                                step = 3,
+                                targetContent = {
+                                    ModernInputCard(
+                                        phoneInput = state.phoneInput,
+                                        messageInput = state.messageInput,
+                                        selectedFileName = state.selectedFileName,
+                                        onPhoneChanged = viewModel::onPhoneChanged,
+                                        onMessageChanged = viewModel::onMessageChanged,
+                                        onPasteClick = { viewModel.pasteFromClipboard(context) },
+                                        onContactsClick = viewModel::toggleContactPicker,
+                                        onQuickMessagesClick = viewModel::toggleQuickMessages,
+                                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
+                                        onSendClick = { viewModel.onSendClick(context) },
+                                        onClearAttachment = viewModel::clearAttachment,
+                                        highlightField = "message"
+                                    )
+                                },
+                                onNext = viewModel::nextTutorialStep,
+                                onPrevious = viewModel::previousTutorialStep,
+                                onSkip = viewModel::skipTutorial
+                            )
+                            4 -> TutorialBubble(
+                                step = 4,
+                                targetContent = {
+                                    ModernInputCard(
+                                        phoneInput = state.phoneInput,
+                                        messageInput = state.messageInput,
+                                        selectedFileName = state.selectedFileName,
+                                        onPhoneChanged = viewModel::onPhoneChanged,
+                                        onMessageChanged = viewModel::onMessageChanged,
+                                        onPasteClick = { viewModel.pasteFromClipboard(context) },
+                                        onContactsClick = viewModel::toggleContactPicker,
+                                        onQuickMessagesClick = viewModel::toggleQuickMessages,
+                                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
+                                        onSendClick = { viewModel.onSendClick(context) },
+                                        onClearAttachment = viewModel::clearAttachment,
+                                        highlightField = "attach"
+                                    )
+                                },
+                                onNext = viewModel::nextTutorialStep,
+                                onPrevious = viewModel::previousTutorialStep,
+                                onSkip = viewModel::skipTutorial
+                            )
+                            5 -> TutorialBubble(
+                                step = 5,
+                                targetContent = {
+                                    ModernInputCard(
+                                        phoneInput = state.phoneInput,
+                                        messageInput = state.messageInput,
+                                        selectedFileName = state.selectedFileName,
+                                        onPhoneChanged = viewModel::onPhoneChanged,
+                                        onMessageChanged = viewModel::onMessageChanged,
+                                        onPasteClick = { viewModel.pasteFromClipboard(context) },
+                                        onContactsClick = viewModel::toggleContactPicker,
+                                        onQuickMessagesClick = viewModel::toggleQuickMessages,
+                                        onAttachFileClick = { filePickerLauncher.launch("*/*") },
+                                        onSendClick = { viewModel.onSendClick(context) },
+                                        onClearAttachment = viewModel::clearAttachment,
+                                        highlightField = "paste"
+                                    )
+                                },
+                                onNext = viewModel::nextTutorialStep,
+                                onPrevious = viewModel::previousTutorialStep,
+                                onSkip = viewModel::skipTutorial
+                            )
+                            else -> {
+                                ModernInputCard(
+                                    phoneInput = state.phoneInput,
+                                    messageInput = state.messageInput,
+                                    selectedFileName = state.selectedFileName,
+                                    onPhoneChanged = viewModel::onPhoneChanged,
+                                    onMessageChanged = viewModel::onMessageChanged,
+                                    onPasteClick = { viewModel.pasteFromClipboard(context) },
+                                    onContactsClick = viewModel::toggleContactPicker,
+                                    onQuickMessagesClick = viewModel::toggleQuickMessages,
+                                    onAttachFileClick = { filePickerLauncher.launch("*/*") },
+                                    onSendClick = { viewModel.onSendClick(context) },
+                                    onClearAttachment = viewModel::clearAttachment
+                                )
+                            }
+                        }
+                    } else {
+                        ModernInputCard(
+                            phoneInput = state.phoneInput,
+                            messageInput = state.messageInput,
+                            selectedFileName = state.selectedFileName,
+                            onPhoneChanged = viewModel::onPhoneChanged,
+                            onMessageChanged = viewModel::onMessageChanged,
+                            onPasteClick = { viewModel.pasteFromClipboard(context) },
+                            onContactsClick = viewModel::toggleContactPicker,
+                            onQuickMessagesClick = viewModel::toggleQuickMessages,
+                            onAttachFileClick = { filePickerLauncher.launch("*/*") },
+                            onSendClick = { viewModel.onSendClick(context) },
+                            onClearAttachment = viewModel::clearAttachment
+                        )
+                    }
+                }
+
+                item {
+                    if (state.isFirstTimeUser && state.currentTutorialStep == 6) {
+                        TutorialBubble(
+                            step = 6,
+                            targetContent = {
+                                ModernHistoryCard(
+                                    history = if (state.isSearching) state.filteredHistory else state.history,
+                                    historyLabel = viewModel::historyLabel,
+                                    onSelect = viewModel::onHistorySelected,
+                                    onClear = viewModel::clearHistory,
+                                    onSearch = viewModel::searchHistory,
+                                    onClearSearch = viewModel::clearSearch,
+                                    isSearching = state.isSearching
+                                )
+                            },
+                            onNext = viewModel::nextTutorialStep,
+                            onPrevious = viewModel::previousTutorialStep,
+                            onSkip = viewModel::skipTutorial
+                        )
+                    } else {
+                        ModernHistoryCard(
+                            history = if (state.isSearching) state.filteredHistory else state.history,
+                            historyLabel = viewModel::historyLabel,
+                            onSelect = viewModel::onHistorySelected,
+                            onClear = viewModel::clearHistory,
+                            onSearch = viewModel::searchHistory,
+                            onClearSearch = viewModel::clearSearch,
+                            isSearching = state.isSearching
+                        )
+                    }
+                }
+            }
+
+            // Barra de rolagem personalizada
+            LazyColumnScrollbar(
+                listState = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(end = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun LazyColumnScrollbar(
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    modifier: Modifier = Modifier
+) {
+    val canScroll by remember {
+        derivedStateOf { listState.canScrollForward || listState.canScrollBackward }
+    }
+
+    if (canScroll) {
+        val targetAlpha = if (listState.isScrollInProgress) 1f else 0.3f
+
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.CenterEnd
+        ) {
+            val firstVisibleItemIndex = listState.firstVisibleItemIndex
+            val totalItemsCount = listState.layoutInfo.totalItemsCount
+
+            if (totalItemsCount > 0) {
+                val scrollProgress = if (totalItemsCount > 1) {
+                    firstVisibleItemIndex.toFloat() / (totalItemsCount - 1).toFloat()
+                } else 0f
+
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(vertical = 8.dp)
+                ) {
+                    val barHeight = size.height * 0.15f
+                    val barY = (size.height - barHeight) * scrollProgress
+
+                    drawRoundRect(
+                        color = WhatsAppDarkGreen.copy(alpha = targetAlpha),
+                        topLeft = Offset(size.width - 4.dp.toPx(), barY),
+                        size = androidx.compose.ui.geometry.Size(
+                            width = 4.dp.toPx(),
+                            height = barHeight
+                        ),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx())
                     )
                 }
             }
@@ -245,14 +495,16 @@ fun WhatsAppScreen() {
 private fun ModernInputCard(
     phoneInput: TextFieldValue,
     messageInput: TextFieldValue,
+    selectedFileName: String?,
     onPhoneChanged: (TextFieldValue) -> Unit,
     onMessageChanged: (TextFieldValue) -> Unit,
     onPasteClick: () -> Unit,
-    onQrCodeClick: () -> Unit,
     onContactsClick: () -> Unit,
     onQuickMessagesClick: () -> Unit,
+    onAttachFileClick: () -> Unit,
     onSendClick: () -> Unit,
-    onShareClick: () -> Unit
+    onClearAttachment: () -> Unit,
+    highlightField: String? = null
 ) {
     val isPhoneValid by remember(phoneInput.text) {
         derivedStateOf { PhoneMask.isValid(phoneInput.text) }
@@ -294,20 +546,25 @@ private fun ModernInputCard(
             OutlinedTextField(
                 value = phoneInput,
                 onValueChange = onPhoneChanged,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (highlightField == "phone") Modifier.background(
+                            WhatsAppGreen.copy(alpha = 0.1f),
+                            RoundedCornerShape(16.dp)
+                        ) else Modifier
+                    ),
                 leadingIcon = {
                     Icon(Icons.Outlined.Phone, null, tint = WhatsAppGreen)
                 },
                 trailingIcon = {
                     Row {
-                        IconButton(onClick = onQrCodeClick) {
-                            Icon(
-                                Icons.Outlined.QrCodeScanner,
-                                contentDescription = "Ler QR code",
-                                tint = WhatsAppDarkGreen
-                            )
-                        }
-                        IconButton(onClick = onContactsClick) {
+                        IconButton(
+                            onClick = onContactsClick,
+                            modifier = if (highlightField == "contacts")
+                                Modifier.background(WhatsAppGreen.copy(alpha = 0.2f), CircleShape)
+                            else Modifier
+                        ) {
                             Icon(
                                 Icons.Outlined.Person,
                                 contentDescription = "Contatos",
@@ -345,9 +602,21 @@ private fun ModernInputCard(
             OutlinedTextField(
                 value = messageInput,
                 onValueChange = onMessageChanged,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (highlightField == "message") Modifier.background(
+                            WhatsAppGreen.copy(alpha = 0.1f),
+                            RoundedCornerShape(16.dp)
+                        ) else Modifier
+                    ),
                 leadingIcon = {
-                    IconButton(onClick = onQuickMessagesClick) {
+                    IconButton(
+                        onClick = onQuickMessagesClick,
+                        modifier = if (highlightField == "quick")
+                            Modifier.background(WhatsAppGreen.copy(alpha = 0.2f), CircleShape)
+                        else Modifier
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Rounded.Send,
                             contentDescription = "Mensagens rápidas",
@@ -365,6 +634,45 @@ private fun ModernInputCard(
                 )
             )
 
+            // Indicador de arquivo anexado
+            if (!selectedFileName.isNullOrBlank()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(WhatsAppBg.copy(alpha = 0.5f))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Filled.AttachFile,
+                            contentDescription = null,
+                            tint = WhatsAppGreen,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = selectedFileName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    IconButton(onClick = onClearAttachment) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Remover arquivo",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
             // Chips de ação
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -381,23 +689,33 @@ private fun ModernInputCard(
                         )
                     },
                     colors = AssistChipDefaults.assistChipColors(
-                        containerColor = WhatsAppBg
-                    )
+                        containerColor = if (highlightField == "paste")
+                            WhatsAppGreen.copy(alpha = 0.3f)
+                        else WhatsAppBg
+                    ),
+                    modifier = if (highlightField == "paste")
+                        Modifier.background(WhatsAppGreen.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                    else Modifier
                 )
 
                 AssistChip(
-                    onClick = onShareClick,
-                    label = { Text("Compartilhar") },
+                    onClick = onAttachFileClick,
+                    label = { Text("Anexar arquivo") },
                     leadingIcon = {
                         Icon(
-                            Icons.Outlined.Share,
+                            Icons.Filled.AttachFile,
                             null,
                             modifier = Modifier.size(AssistChipDefaults.IconSize)
                         )
                     },
                     colors = AssistChipDefaults.assistChipColors(
-                        containerColor = WhatsAppBg
-                    )
+                        containerColor = if (highlightField == "attach")
+                            WhatsAppGreen.copy(alpha = 0.3f)
+                        else WhatsAppBg
+                    ),
+                    modifier = if (highlightField == "attach")
+                        Modifier.background(WhatsAppGreen.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                    else Modifier
                 )
             }
 
@@ -735,8 +1053,9 @@ private fun InstructionCard() {
             Text(
                 "1. Digite, cole ou escolha um contato.\n" +
                         "2. Adicione uma mensagem (opcional).\n" +
-                        "3. Toque em Abrir conversa.\n" +
-                        "4. O WhatsApp abrirá sem salvar o contato.",
+                        "3. Anexe um arquivo se desejar.\n" +
+                        "4. Toque em Abrir conversa.\n" +
+                        "5. O WhatsApp abrirá sem salvar o contato.",
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -769,22 +1088,6 @@ private fun DeveloperFooter(modifier: Modifier = Modifier) {
             )
         }
     }
-}
-
-private fun shareNumber(context: Context, number: String) {
-    val digits = number.filter { it.isDigit() }
-
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(
-            Intent.EXTRA_TEXT,
-            "https://api.whatsapp.com/send?phone=55$digits"
-        )
-    }
-
-    context.startActivity(
-        Intent.createChooser(intent, "Compartilhar número")
-    )
 }
 
 @Composable

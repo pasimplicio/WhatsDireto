@@ -1,12 +1,12 @@
 <lint-module
     format="1"
-    dir="C:\Users\paulosimplicio\WhatsDireto\app"
+    dir="C:\Users\caema43907\WhatsDireto\app"
     name=":app"
     type="APP"
     maven="WhatsDireto:app:unspecified"
     agpVersion="8.13.1"
     buildFolder="build"
-    bootClassPath="C:\Users\paulosimplicio\AppData\Local\Android\Sdk\platforms\android-36\android.jar;C:\Users\paulosimplicio\AppData\Local\Android\Sdk\build-tools\35.0.0\core-lambda-stubs.jar"
+    bootClassPath="C:\Users\caema43907\AppData\Local\Android\Sdk\platforms\android-36\android.jar;C:\Users\caema43907\AppData\Local\Android\Sdk\build-tools\35.0.0\core-lambda-stubs.jar"
     javaSourceLevel="17"
     compileTarget="android-36"
     neverShrinking="true">
