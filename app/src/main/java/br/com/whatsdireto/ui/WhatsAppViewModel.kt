@@ -1,6 +1,7 @@
 package br.com.whatsdireto.ui
 
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
@@ -223,7 +224,7 @@ class WhatsAppViewModel(
         // Verifica se tem arquivo anexado
         val fileUri = _uiState.value.selectedFileUri
         if (fileUri != null) {
-            shareFileWithWhatsApp(context, normalized, messageText, fileUri)
+            sendFileToWhatsAppContact(context, normalized, messageText, fileUri)
         } else {
             WhatsAppLauncher.open(context, normalized, messageText)
         }
@@ -232,67 +233,77 @@ class WhatsAppViewModel(
         clearAllFields()
     }
 
-    private fun shareFileWithWhatsApp(context: Context, phone: String, message: String, fileUri: Uri) {
+    private fun sendFileToWhatsAppContact(context: Context, phone: String, message: String, uri: Uri) {
+        val cleanPhone = phone.replace("[^0-9]".toRegex(), "")
+
         try {
-            val cleanPhone = phone.replace("[^0-9]".toRegex(), "")
+            // PASSO 1: Abre a conversa diretamente com wa.me (mais direto que api.whatsapp.com/send)
+            val chatIntent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("https://wa.me/$cleanPhone")
+                setPackage("com.whatsapp")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
 
-            // Cria um Intent combinado que primeiro abre a conversa e depois compartilha
-            val intent = Intent().apply {
-                action = Intent.ACTION_SEND
-                type = context.contentResolver.getType(fileUri) ?: "*/*"
-                putExtra(Intent.EXTRA_STREAM, fileUri)
+            context.startActivity(chatIntent)
+
+            // Pequena pausa para garantir que a conversa foi aberta
+            // (em dispositivos mais rápidos, isso pode ser reduzido)
+            Thread.sleep(400)
+
+            // PASSO 2: Compartilha o arquivo, que aparecerá na conversa já aberta
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = context.contentResolver.getType(uri) ?: "*/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TEXT, message)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-
-                if (message.isNotBlank()) {
-                    putExtra(Intent.EXTRA_TEXT, message)
-                }
-
-                // Adiciona o número do WhatsApp
-                putExtra("jid", "$cleanPhone@s.whatsapp.net")
-                putExtra("phone", cleanPhone)
-
                 setPackage("com.whatsapp")
             }
 
-            // Tenta iniciar diretamente
-            context.startActivity(intent)
+            context.startActivity(shareIntent)
 
         } catch (e: ActivityNotFoundException) {
+            // Tenta com WhatsApp Business se o normal não estiver instalado
             try {
-                // Tenta com WhatsApp Business
-                val cleanPhone = phone.replace("[^0-9]".toRegex(), "")
+                val chatIntent = Intent(Intent.ACTION_VIEW).apply {
+                    data = Uri.parse("https://wa.me/$cleanPhone")
+                    setPackage("com.whatsapp.w4b")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(chatIntent)
 
-                val intent = Intent().apply {
-                    action = Intent.ACTION_SEND
-                    type = context.contentResolver.getType(fileUri) ?: "*/*"
-                    putExtra(Intent.EXTRA_STREAM, fileUri)
+                Thread.sleep(400)
+
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = context.contentResolver.getType(uri) ?: "*/*"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_TEXT, message)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-
-                    if (message.isNotBlank()) {
-                        putExtra(Intent.EXTRA_TEXT, message)
-                    }
-
-                    putExtra("jid", "$cleanPhone@s.whatsapp.net")
-                    putExtra("phone", cleanPhone)
-
                     setPackage("com.whatsapp.w4b")
                 }
+                context.startActivity(shareIntent)
 
-                context.startActivity(intent)
+            } catch (e2: Exception) {
+                // Fallback: se não encontrar nenhum WhatsApp, abre no navegador
+                try {
+                    val encodedMessage = URLEncoder.encode(message, "UTF-8")
+                    val browserIntent = Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://wa.me/$cleanPhone?text=$encodedMessage")
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(browserIntent)
 
-            } catch (e2: ActivityNotFoundException) {
-                // Se não encontrar WhatsApp, abre no navegador
-                val cleanPhone = phone.replace("[^0-9]".toRegex(), "")
-                val encodedMessage = URLEncoder.encode(message, "UTF-8")
-                val browserIntent = Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone&text=$encodedMessage")
-                )
-                browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(browserIntent)
+                    showMessage("WhatsApp não encontrado. Abrindo no navegador.")
+                } catch (e3: Exception) {
+                    showMessage("Não foi possível abrir o WhatsApp. Verifique se está instalado.")
+                }
             }
+        } catch (e: SecurityException) {
+            showMessage("Permissão negada para acessar o arquivo.")
+            WhatsAppLauncher.open(context, phone, message)
         } catch (e: Exception) {
-            // Se falhar, tenta o método tradicional
+            showMessage("Erro ao enviar arquivo. Tente novamente.")
             WhatsAppLauncher.open(context, phone, message)
         }
     }
