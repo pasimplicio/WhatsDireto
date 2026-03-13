@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 class WhatsAppViewModel(
     private val historyRepository: HistoryRepository,
@@ -233,34 +234,35 @@ class WhatsAppViewModel(
 
     private fun shareFileWithWhatsApp(context: Context, phone: String, message: String, fileUri: Uri) {
         try {
-            // Limpa o telefone
             val cleanPhone = phone.replace("[^0-9]".toRegex(), "")
 
-            // Cria o intent para enviar arquivo + mensagem diretamente para o WhatsApp
-            val shareIntent = Intent().apply {
+            // Cria um Intent combinado que primeiro abre a conversa e depois compartilha
+            val intent = Intent().apply {
                 action = Intent.ACTION_SEND
                 type = context.contentResolver.getType(fileUri) ?: "*/*"
                 putExtra(Intent.EXTRA_STREAM, fileUri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 
-                // Adiciona a mensagem se existir
                 if (message.isNotBlank()) {
                     putExtra(Intent.EXTRA_TEXT, message)
                 }
 
-                // Formato correto para o jid do WhatsApp (identificador do contato)
-                // Isso faz abrir diretamente a conversa
+                // Adiciona o número do WhatsApp
                 putExtra("jid", "$cleanPhone@s.whatsapp.net")
+                putExtra("phone", cleanPhone)
 
-                // Força abrir diretamente no WhatsApp sem diálogo
                 setPackage("com.whatsapp")
             }
 
-            context.startActivity(shareIntent)
+            // Tenta iniciar diretamente
+            context.startActivity(intent)
+
         } catch (e: ActivityNotFoundException) {
             try {
-                // Se o WhatsApp normal não estiver instalado, tenta o Business
-                val businessIntent = Intent().apply {
+                // Tenta com WhatsApp Business
+                val cleanPhone = phone.replace("[^0-9]".toRegex(), "")
+
+                val intent = Intent().apply {
                     action = Intent.ACTION_SEND
                     type = context.contentResolver.getType(fileUri) ?: "*/*"
                     putExtra(Intent.EXTRA_STREAM, fileUri)
@@ -270,16 +272,27 @@ class WhatsAppViewModel(
                         putExtra(Intent.EXTRA_TEXT, message)
                     }
 
-                    putExtra("jid", "$phone@s.whatsapp.net")
+                    putExtra("jid", "$cleanPhone@s.whatsapp.net")
+                    putExtra("phone", cleanPhone)
+
                     setPackage("com.whatsapp.w4b")
                 }
-                context.startActivity(businessIntent)
+
+                context.startActivity(intent)
+
             } catch (e2: ActivityNotFoundException) {
-                // Se ambos falharem, envia só a mensagem pelo método tradicional
-                WhatsAppLauncher.open(context, phone, message)
+                // Se não encontrar WhatsApp, abre no navegador
+                val cleanPhone = phone.replace("[^0-9]".toRegex(), "")
+                val encodedMessage = URLEncoder.encode(message, "UTF-8")
+                val browserIntent = Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://api.whatsapp.com/send?phone=$cleanPhone&text=$encodedMessage")
+                )
+                browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(browserIntent)
             }
         } catch (e: Exception) {
-            // Se falhar por qualquer outro motivo, tenta o método tradicional
+            // Se falhar, tenta o método tradicional
             WhatsAppLauncher.open(context, phone, message)
         }
     }
