@@ -11,7 +11,8 @@ data class WhatsAppUiState(
     val quickMessages: List<String> = emptyList(),
     val message: String? = null,
     val showContactPicker: Boolean = false,
-    val showQRScanner: Boolean = false,
     val showQuickMessages: Boolean = false,
-    val isSearching: Boolean = false
+    val isSearching: Boolean = false,
+    val isFirstTimeUser: Boolean = true,
+    val currentTutorialStep: Int = 0
 )
