@@ -1,0 +1,10 @@
+{
+  "name": "WhatsDireto",
+  "short_name": "WhatsDireto",
+  "description": "Inicie conversas no WhatsApp sem salvar o número na agenda.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F4F1EA",
+  "theme_color": "#008069",
+  "lang": "pt-BR"
+}

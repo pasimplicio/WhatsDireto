@@ -1,13 +1,35 @@
-# Android
+# Gradle / Kotlin / Build outputs
 .gradle/
-/build
-/local.properties
-*.iml
-.idea/
-*.apk
-*.ap_
-*.dex
+.kotlin/
+**/build/
+build/
+kotlin-js-store/
 *.class
+*.dex
+*.ap_
+*.apk
+*.aab
+*.ipa
+
+# IDE / OS
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+hs_err_*.log
+replay_pid*.log
+*.bkp
+
+# Release artifacts & Signing keys (NEVER commit keystores!)
+/release/
+*.jks
+*.keystore
+/whatsdireto
+keystore.properties
+
+# Scratch / dumps
+estrutura.txt
