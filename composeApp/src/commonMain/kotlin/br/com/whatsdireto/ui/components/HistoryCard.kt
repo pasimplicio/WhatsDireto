@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.PushPin
@@ -68,6 +69,8 @@ fun HistoryCard(
     onFilterChanged: (HistoryFilter) -> Unit,
     onSelectEntry: (HistoryEntry) -> Unit,
     onOpenDirectly: (HistoryEntry) -> Unit,
+    supportsDesktopAction: Boolean = false,
+    onOpenInDesktop: (HistoryEntry) -> Unit = {},
     onTogglePin: (HistoryEntry) -> Unit,
     onEditLabel: (HistoryEntry) -> Unit,
     onCopyLink: (HistoryEntry) -> Unit,
@@ -230,6 +233,8 @@ fun HistoryCard(
                             formattedTime = formatTimestamp(entry.timestamp),
                             onSelect = { onSelectEntry(entry) },
                             onOpenDirectly = { onOpenDirectly(entry) },
+                            supportsDesktopAction = supportsDesktopAction,
+                            onOpenInDesktop = { onOpenInDesktop(entry) },
                             onTogglePin = { onTogglePin(entry) },
                             onEditLabel = { onEditLabel(entry) },
                             onCopyLink = { onCopyLink(entry) },
@@ -277,6 +282,8 @@ private fun HistoryRowItem(
     formattedTime: String,
     onSelect: () -> Unit,
     onOpenDirectly: () -> Unit,
+    supportsDesktopAction: Boolean,
+    onOpenInDesktop: () -> Unit,
     onTogglePin: () -> Unit,
     onEditLabel: () -> Unit,
     onCopyLink: () -> Unit,
@@ -371,6 +378,22 @@ private fun HistoryRowItem(
                 expanded = menuExpanded,
                 onDismissRequest = { menuExpanded = false }
             ) {
+                if (supportsDesktopAction) {
+                    DropdownMenuItem(
+                        text = { Text("Abrir no WhatsApp Desktop") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.DesktopWindows,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onOpenInDesktop()
+                        }
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text(if (entry.isPinned) "Desafixar" else "Fixar no topo") },
                     leadingIcon = {

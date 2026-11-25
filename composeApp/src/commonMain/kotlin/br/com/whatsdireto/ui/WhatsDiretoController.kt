@@ -9,6 +9,7 @@ import br.com.whatsdireto.domain.HistoryEntry
 import br.com.whatsdireto.domain.LaunchResult
 import br.com.whatsdireto.domain.PhoneNumberUtils
 import br.com.whatsdireto.domain.WhatsAppAppPreference
+import br.com.whatsdireto.domain.WhatsAppLaunchTarget
 import br.com.whatsdireto.platform.PlatformBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -165,7 +166,7 @@ class WhatsDiretoController(
         }
     }
 
-    fun openConversation() {
+    fun openConversation(target: WhatsAppLaunchTarget = WhatsAppLaunchTarget.DEFAULT) {
         val state = _uiState.value
         val normalized = state.normalizedPhone
         if (normalized == null) {
@@ -173,21 +174,34 @@ class WhatsDiretoController(
             return
         }
 
-        when (val result = platform.openWhatsApp(normalized, state.messageText, state.whatsAppPreference)) {
+        when (val result = platform.openWhatsApp(normalized, state.messageText, state.whatsAppPreference, target)) {
             LaunchResult.Success -> {
                 historyRepository.save(normalized)
-                emitFeedback("Abrindo conversa no WhatsApp...")
+                val feedbackText = when (target) {
+                    WhatsAppLaunchTarget.WEB -> "Abrindo conversa no WhatsApp Web..."
+                    WhatsAppLaunchTarget.DESKTOP -> "Abrindo conversa no WhatsApp Desktop..."
+                    WhatsAppLaunchTarget.DEFAULT -> "Abrindo conversa no WhatsApp..."
+                }
+                emitFeedback(feedbackText)
             }
             is LaunchResult.Error -> emitFeedback(result.message)
         }
     }
 
-    fun openHistoryEntryDirectly(entry: HistoryEntry) {
+    fun openHistoryEntryDirectly(
+        entry: HistoryEntry,
+        target: WhatsAppLaunchTarget = WhatsAppLaunchTarget.DEFAULT
+    ) {
         val state = _uiState.value
-        when (val result = platform.openWhatsApp(entry.phone, "", state.whatsAppPreference)) {
+        when (val result = platform.openWhatsApp(entry.phone, "", state.whatsAppPreference, target)) {
             LaunchResult.Success -> {
                 historyRepository.save(entry.phone)
-                emitFeedback("Abrindo conversa...")
+                val feedbackText = when (target) {
+                    WhatsAppLaunchTarget.WEB -> "Abrindo no WhatsApp Web..."
+                    WhatsAppLaunchTarget.DESKTOP -> "Abrindo no WhatsApp Desktop..."
+                    WhatsAppLaunchTarget.DEFAULT -> "Abrindo conversa..."
+                }
+                emitFeedback(feedbackText)
             }
             is LaunchResult.Error -> emitFeedback(result.message)
         }

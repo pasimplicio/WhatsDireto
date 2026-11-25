@@ -60,6 +60,7 @@ import br.com.whatsdireto.data.HistoryRepository
 import br.com.whatsdireto.data.QuickMessageRepository
 import br.com.whatsdireto.data.SettingsRepository
 import br.com.whatsdireto.domain.AppThemeMode
+import br.com.whatsdireto.domain.WhatsAppLaunchTarget
 import br.com.whatsdireto.platform.PlatformBridge
 import br.com.whatsdireto.platform.PlatformContactsOverlay
 import br.com.whatsdireto.platform.PlatformQrScannerOverlay
@@ -296,7 +297,9 @@ fun WhatsDiretoRoot(
                                     onQuickMessagesClick = { controller.setShowQuickMessages(true) },
                                     onSaveMessageTemplate = controller::saveCurrentMessageAsQuickTemplate,
                                     onPreferenceChanged = controller::onWhatsAppPreferenceChanged,
-                                    onOpenConversation = controller::openConversation,
+                                    onOpenConversation = { controller.openConversation() },
+                                    onOpenWhatsAppWeb = { controller.openConversation(WhatsAppLaunchTarget.WEB) },
+                                    onOpenWhatsAppDesktop = { controller.openConversation(WhatsAppLaunchTarget.DESKTOP) },
                                     onCopyLink = controller::copyCurrentLink,
                                     onShareLink = controller::shareCurrentLink,
                                     onShowQrCode = { controller.setShowQrGenerator(true) }
@@ -318,7 +321,9 @@ fun WhatsDiretoRoot(
                                     onSearchChanged = controller::onHistorySearchChanged,
                                     onFilterChanged = controller::onHistoryFilterChanged,
                                     onSelectEntry = controller::onHistorySelected,
-                                    onOpenDirectly = controller::openHistoryEntryDirectly,
+                                    onOpenDirectly = { controller.openHistoryEntryDirectly(it, WhatsAppLaunchTarget.WEB) },
+                                    supportsDesktopAction = controller.capabilities.supportsWebAndDesktopButtons,
+                                    onOpenInDesktop = { controller.openHistoryEntryDirectly(it, WhatsAppLaunchTarget.DESKTOP) },
                                     onTogglePin = controller::toggleHistoryPin,
                                     onEditLabel = controller::startEditingHistoryLabel,
                                     onCopyLink = controller::copyHistoryLink,
@@ -359,7 +364,9 @@ fun WhatsDiretoRoot(
                                 onQuickMessagesClick = { controller.setShowQuickMessages(true) },
                                 onSaveMessageTemplate = controller::saveCurrentMessageAsQuickTemplate,
                                 onPreferenceChanged = controller::onWhatsAppPreferenceChanged,
-                                onOpenConversation = controller::openConversation,
+                                onOpenConversation = { controller.openConversation() },
+                                onOpenWhatsAppWeb = { controller.openConversation(WhatsAppLaunchTarget.WEB) },
+                                onOpenWhatsAppDesktop = { controller.openConversation(WhatsAppLaunchTarget.DESKTOP) },
                                 onCopyLink = controller::copyCurrentLink,
                                 onShareLink = controller::shareCurrentLink,
                                 onShowQrCode = { controller.setShowQrGenerator(true) }
@@ -377,7 +384,9 @@ fun WhatsDiretoRoot(
                                 onSearchChanged = controller::onHistorySearchChanged,
                                 onFilterChanged = controller::onHistoryFilterChanged,
                                 onSelectEntry = controller::onHistorySelected,
-                                onOpenDirectly = controller::openHistoryEntryDirectly,
+                                onOpenDirectly = { controller.openHistoryEntryDirectly(it) },
+                                supportsDesktopAction = controller.capabilities.supportsWebAndDesktopButtons,
+                                onOpenInDesktop = { controller.openHistoryEntryDirectly(it, WhatsAppLaunchTarget.DESKTOP) },
                                 onTogglePin = controller::toggleHistoryPin,
                                 onEditLabel = controller::startEditingHistoryLabel,
                                 onCopyLink = controller::copyHistoryLink,

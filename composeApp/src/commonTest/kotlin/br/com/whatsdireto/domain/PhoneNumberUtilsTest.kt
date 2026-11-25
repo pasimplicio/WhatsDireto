@@ -65,6 +65,21 @@ class PhoneNumberUtilsTest {
     }
 
     @Test
+    fun buildsDirectWebAndDesktopUrls() {
+        val webUrl = PhoneNumberUtils.buildWhatsAppWebUrl("5511999998888", "Olá Web")
+        assertEquals("https://web.whatsapp.com/send?phone=5511999998888&text=Ol%C3%A1%20Web", webUrl)
+
+        val webNoMsg = PhoneNumberUtils.buildWhatsAppWebUrl("5511999998888")
+        assertEquals("https://web.whatsapp.com/send?phone=5511999998888", webNoMsg)
+
+        val desktopUrl = PhoneNumberUtils.buildWhatsAppDesktopUrl("5511999998888", "Olá Desktop")
+        assertEquals("whatsapp://send?phone=5511999998888&text=Ol%C3%A1%20Desktop", desktopUrl)
+
+        val desktopNoMsg = PhoneNumberUtils.buildWhatsAppDesktopUrl("5511999998888")
+        assertEquals("whatsapp://send?phone=5511999998888", desktopNoMsg)
+    }
+
+    @Test
     fun generatesValidQrCodeMatrixForWhatsAppLink() {
         val url = PhoneNumberUtils.buildWhatsAppUrl("5511999998888", "Oi")
         val qr = QrCodeMatrix.encode(url)

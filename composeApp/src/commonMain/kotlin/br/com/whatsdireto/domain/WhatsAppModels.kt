@@ -6,6 +6,12 @@ enum class WhatsAppAppPreference(val label: String) {
     BUSINESS("Business")
 }
 
+enum class WhatsAppLaunchTarget {
+    DEFAULT,
+    WEB,
+    DESKTOP
+}
+
 enum class AppThemeMode(val label: String) {
     SYSTEM("Automático"),
     LIGHT("Claro"),
@@ -29,5 +35,6 @@ data class PlatformCapabilities(
     val supportsContactsPicker: Boolean,
     val supportsQrScanner: Boolean,
     val supportsWhatsAppVariantPicker: Boolean,
-    val supportsNativeShare: Boolean
+    val supportsNativeShare: Boolean,
+    val supportsWebAndDesktopButtons: Boolean = false
 )

@@ -285,6 +285,32 @@ object PhoneNumberUtils {
     }
 
     /**
+     * Builds a direct WhatsApp Web URL (opens straight in browser without the wa.me interstitial).
+     */
+    fun buildWhatsAppWebUrl(normalizedPhone: String, message: String = ""): String {
+        val cleanPhone = digits(normalizedPhone)
+        val trimmedMessage = message.trim()
+        return if (trimmedMessage.isNotEmpty()) {
+            "https://web.whatsapp.com/send?phone=$cleanPhone&text=${encodeUrlComponent(trimmedMessage)}"
+        } else {
+            "https://web.whatsapp.com/send?phone=$cleanPhone"
+        }
+    }
+
+    /**
+     * Builds a native whatsapp:// deep link to open directly in WhatsApp Desktop / native app.
+     */
+    fun buildWhatsAppDesktopUrl(normalizedPhone: String, message: String = ""): String {
+        val cleanPhone = digits(normalizedPhone)
+        val trimmedMessage = message.trim()
+        return if (trimmedMessage.isNotEmpty()) {
+            "whatsapp://send?phone=$cleanPhone&text=${encodeUrlComponent(trimmedMessage)}"
+        } else {
+            "whatsapp://send?phone=$cleanPhone"
+        }
+    }
+
+    /**
      * RFC-3986 percent-encoding (multiplatform, UTF-8 safe, encodes spaces as %20).
      */
     fun encodeUrlComponent(value: String): String {

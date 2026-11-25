@@ -15,6 +15,7 @@ import br.com.whatsdireto.domain.LaunchResult
 import br.com.whatsdireto.domain.PhoneNumberUtils
 import br.com.whatsdireto.domain.PlatformCapabilities
 import br.com.whatsdireto.domain.WhatsAppAppPreference
+import br.com.whatsdireto.domain.WhatsAppLaunchTarget
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -57,7 +58,8 @@ class AndroidPlatformBridge(context: Context) : PlatformBridge {
     override fun openWhatsApp(
         normalizedPhone: String,
         message: String,
-        preference: WhatsAppAppPreference
+        preference: WhatsAppAppPreference,
+        target: WhatsAppLaunchTarget
     ): LaunchResult {
         val url = PhoneNumberUtils.buildWhatsAppUrl(normalizedPhone, message)
         val uri = Uri.parse(url)

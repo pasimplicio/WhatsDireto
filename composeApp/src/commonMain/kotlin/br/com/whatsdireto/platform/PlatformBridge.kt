@@ -5,6 +5,7 @@ import br.com.whatsdireto.data.KeyValueStorage
 import br.com.whatsdireto.domain.LaunchResult
 import br.com.whatsdireto.domain.PlatformCapabilities
 import br.com.whatsdireto.domain.WhatsAppAppPreference
+import br.com.whatsdireto.domain.WhatsAppLaunchTarget
 
 interface PlatformBridge {
     val capabilities: PlatformCapabilities
@@ -13,7 +14,8 @@ interface PlatformBridge {
     fun openWhatsApp(
         normalizedPhone: String,
         message: String,
-        preference: WhatsAppAppPreference
+        preference: WhatsAppAppPreference,
+        target: WhatsAppLaunchTarget = WhatsAppLaunchTarget.DEFAULT
     ): LaunchResult
 
     fun readClipboard(): String?

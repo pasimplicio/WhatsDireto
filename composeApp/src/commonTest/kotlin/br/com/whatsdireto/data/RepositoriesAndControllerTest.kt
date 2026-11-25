@@ -4,6 +4,7 @@ import br.com.whatsdireto.domain.Countries
 import br.com.whatsdireto.domain.LaunchResult
 import br.com.whatsdireto.domain.PlatformCapabilities
 import br.com.whatsdireto.domain.WhatsAppAppPreference
+import br.com.whatsdireto.domain.WhatsAppLaunchTarget
 import br.com.whatsdireto.platform.PlatformBridge
 import br.com.whatsdireto.ui.TUTORIAL_TOTAL_STEPS
 import br.com.whatsdireto.ui.WhatsDiretoController
@@ -24,22 +25,26 @@ private class FakePlatformBridge(
     var now: Long = 1_700_000_000_000L
     var lastOpenedPhone: String? = null
     var lastOpenedMessage: String? = null
+    var lastLaunchTarget: WhatsAppLaunchTarget? = null
 
     override val capabilities = PlatformCapabilities(
         platformName = "Test",
         supportsContactsPicker = false,
         supportsQrScanner = false,
         supportsWhatsAppVariantPicker = true,
-        supportsNativeShare = true
+        supportsNativeShare = true,
+        supportsWebAndDesktopButtons = true
     )
 
     override fun openWhatsApp(
         normalizedPhone: String,
         message: String,
-        preference: WhatsAppAppPreference
+        preference: WhatsAppAppPreference,
+        target: WhatsAppLaunchTarget
     ): LaunchResult {
         lastOpenedPhone = normalizedPhone
         lastOpenedMessage = message
+        lastLaunchTarget = target
         return LaunchResult.Success
     }
 
@@ -151,12 +156,16 @@ class RepositoriesAndControllerTest {
         assertTrue(controller.uiState.value.isPhoneValid)
 
         controller.onMessageChanged("Bom dia!")
-        controller.openConversation()
+        controller.openConversation(WhatsAppLaunchTarget.WEB)
         advanceUntilIdle()
 
         assertEquals("351912345678", bridge.lastOpenedPhone)
         assertEquals("Bom dia!", bridge.lastOpenedMessage)
+        assertEquals(WhatsAppLaunchTarget.WEB, bridge.lastLaunchTarget)
         assertEquals(1, controller.uiState.value.history.size)
         assertEquals("351912345678", controller.uiState.value.history.first().phone)
+
+        controller.openConversation(WhatsAppLaunchTarget.DESKTOP)
+        assertEquals(WhatsAppLaunchTarget.DESKTOP, bridge.lastLaunchTarget)
     }
 }

@@ -6,8 +6,26 @@ import br.com.whatsdireto.domain.LaunchResult
 import br.com.whatsdireto.domain.PhoneNumberUtils
 import br.com.whatsdireto.domain.PlatformCapabilities
 import br.com.whatsdireto.domain.WhatsAppAppPreference
+import br.com.whatsdireto.domain.WhatsAppLaunchTarget
 import kotlinx.browser.localStorage
 import kotlinx.browser.window
+
+@JsFun(
+    """(url) => {
+        try {
+            const a = document.createElement('a');
+            a.href = url;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }"""
+)
+private external fun jsOpenProtocolUri(url: String): Boolean
 
 @JsFun("() => Date.now()")
 private external fun jsDateNow(): Double
@@ -79,7 +97,8 @@ class WebPlatformBridge : PlatformBridge {
         supportsContactsPicker = false,
         supportsQrScanner = false,
         supportsWhatsAppVariantPicker = false,
-        supportsNativeShare = true
+        supportsNativeShare = true,
+        supportsWebAndDesktopButtons = true
     )
 
     override val storage: KeyValueStorage = WebKeyValueStorage()
@@ -87,14 +106,27 @@ class WebPlatformBridge : PlatformBridge {
     override fun openWhatsApp(
         normalizedPhone: String,
         message: String,
-        preference: WhatsAppAppPreference
+        preference: WhatsAppAppPreference,
+        target: WhatsAppLaunchTarget
     ): LaunchResult {
-        val url = PhoneNumberUtils.buildWhatsAppUrl(normalizedPhone, message)
         return try {
-            window.open(url, "_blank", "noopener,noreferrer")
-            LaunchResult.Success
+            when (target) {
+                WhatsAppLaunchTarget.DESKTOP -> {
+                    val desktopUrl = PhoneNumberUtils.buildWhatsAppDesktopUrl(normalizedPhone, message)
+                    if (jsOpenProtocolUri(desktopUrl)) {
+                        LaunchResult.Success
+                    } else {
+                        LaunchResult.Error("Não foi possível acionar o WhatsApp Desktop. Verifique se o aplicativo está instalado.")
+                    }
+                }
+                WhatsAppLaunchTarget.WEB, WhatsAppLaunchTarget.DEFAULT -> {
+                    val webUrl = PhoneNumberUtils.buildWhatsAppWebUrl(normalizedPhone, message)
+                    window.open(webUrl, "_blank", "noopener,noreferrer")
+                    LaunchResult.Success
+                }
+            }
         } catch (_: Throwable) {
-            LaunchResult.Error("O navegador bloqueou a abertura da nova aba. Copie o link e abra manualmente.")
+            LaunchResult.Error("O navegador bloqueou a abertura da conversa. Copie o link e abra manualmente.")
         }
     }
 

@@ -6,6 +6,7 @@ import br.com.whatsdireto.domain.LaunchResult
 import br.com.whatsdireto.domain.PhoneNumberUtils
 import br.com.whatsdireto.domain.PlatformCapabilities
 import br.com.whatsdireto.domain.WhatsAppAppPreference
+import br.com.whatsdireto.domain.WhatsAppLaunchTarget
 import java.awt.Desktop
 import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
@@ -46,7 +47,8 @@ class DesktopPlatformBridge : PlatformBridge {
         supportsContactsPicker = false,
         supportsQrScanner = false,
         supportsWhatsAppVariantPicker = false,
-        supportsNativeShare = false
+        supportsNativeShare = false,
+        supportsWebAndDesktopButtons = true
     )
 
     override val storage: KeyValueStorage = DesktopKeyValueStorage()
@@ -54,9 +56,14 @@ class DesktopPlatformBridge : PlatformBridge {
     override fun openWhatsApp(
         normalizedPhone: String,
         message: String,
-        preference: WhatsAppAppPreference
+        preference: WhatsAppAppPreference,
+        target: WhatsAppLaunchTarget
     ): LaunchResult {
-        val url = PhoneNumberUtils.buildWhatsAppUrl(normalizedPhone, message)
+        val url = when (target) {
+            WhatsAppLaunchTarget.WEB -> PhoneNumberUtils.buildWhatsAppWebUrl(normalizedPhone, message)
+            WhatsAppLaunchTarget.DESKTOP -> PhoneNumberUtils.buildWhatsAppDesktopUrl(normalizedPhone, message)
+            WhatsAppLaunchTarget.DEFAULT -> PhoneNumberUtils.buildWhatsAppUrl(normalizedPhone, message)
+        }
         return try {
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                 Desktop.getDesktop().browse(URI(url))
